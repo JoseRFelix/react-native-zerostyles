@@ -11,6 +11,6 @@
     "jsx": "react-jsx",
     "types": ["react", "react-native"]
   },
-  "include": ["src"],
+  "include": ["src", "test"],
   "exclude": ["lib", "node_modules"]
 }

@@ -1,0 +1,11 @@
+{
+  "singleQuote": false,
+  "overrides": [
+    {
+      "files": "example/zerostyles-app/**/*.{js,jsx,ts,tsx}",
+      "options": {
+        "singleQuote": true
+      }
+    }
+  ]
+}
