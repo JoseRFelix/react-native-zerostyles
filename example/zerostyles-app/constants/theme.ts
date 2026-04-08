@@ -13,7 +13,14 @@ export const appThemes = {
     colors: {
       text: '#11181C',
       background: '#fff',
+      surface: '#F5F9FC',
+      card: '#FFFFFF',
+      border: '#D7E2EA',
+      muted: '#687076',
       tint: tintColorLight,
+      tintMuted: '#D8EEF5',
+      success: '#138A5D',
+      warning: '#BA6A00',
       icon: '#687076',
       tabIconDefault: '#687076',
       tabIconSelected: tintColorLight,
@@ -23,7 +30,14 @@ export const appThemes = {
     colors: {
       text: '#ECEDEE',
       background: '#151718',
+      surface: '#1D2125',
+      card: '#20262A',
+      border: '#30363D',
+      muted: '#9BA1A6',
       tint: tintColorDark,
+      tintMuted: '#143541',
+      success: '#52D39A',
+      warning: '#FFD16A',
       icon: '#9BA1A6',
       tabIconDefault: '#9BA1A6',
       tabIconSelected: tintColorDark,
@@ -37,6 +51,11 @@ export type ExampleTheme = ExampleThemes[keyof ExampleThemes];
 declare module 'react-native-zerostyles' {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- required for module augmentation
   interface AppThemes extends ExampleThemes {}
+}
+
+declare module 'react-native-unistyles' {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- required for module augmentation
+  interface UnistylesThemes extends ExampleThemes {}
 }
 
 export const Fonts = Platform.select({
@@ -59,8 +78,7 @@ export const Fonts = Platform.select({
   web: {
     sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     serif: "Georgia, 'Times New Roman', serif",
-    rounded:
-      "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
+    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });

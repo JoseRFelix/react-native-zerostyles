@@ -14,12 +14,12 @@ export interface AppThemes {}
 
 type FallbackThemeMap = Record<string, object>;
 
-export type ThemeMap = keyof AppThemes extends never
-  ? FallbackThemeMap
-  : AppThemes;
+export type ThemeMap = keyof AppThemes extends never ? FallbackThemeMap : AppThemes;
 
-export type ThemeName<TThemes extends Record<string, object> = ThemeMap> =
-  Extract<keyof TThemes, string>;
+export type ThemeName<TThemes extends Record<string, object> = ThemeMap> = Extract<
+  keyof TThemes,
+  string
+>;
 
 export type AppTheme<TThemes extends Record<string, object> = ThemeMap> =
   TThemes[ThemeName<TThemes>];

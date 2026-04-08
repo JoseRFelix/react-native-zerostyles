@@ -18,15 +18,10 @@ export const unstable_settings = {
 function RootNavigator() {
   const themeName = useThemeSelector((context) => context.themeName);
   return (
-    <NavigationThemeProvider
-      value={themeName === 'dark' ? DarkTheme : DefaultTheme}
-    >
+    <NavigationThemeProvider value={themeName === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal"
-          options={{ presentation: 'modal', title: 'Modal' }}
-        />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
     </NavigationThemeProvider>

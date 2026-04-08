@@ -6,10 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
-export function Collapsible({
-  children,
-  title,
-}: PropsWithChildren & { title: string }) {
+export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
   const styles = useCollapsibleStyles();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -25,10 +22,7 @@ export function Collapsible({
           size={18}
           weight="medium"
           color={styles.icon.color}
-          style={[
-            styles.icon,
-            { transform: [{ rotate: isOpen ? '90deg' : '0deg' }] },
-          ]}
+          style={[styles.icon, { transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }]}
         />
 
         <ThemedText type="defaultSemiBold">{title}</ThemedText>

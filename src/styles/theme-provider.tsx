@@ -19,10 +19,9 @@ export type ThemeContextValue<TThemes extends BaseThemeMap = ThemeMap> = {
   toggleTheme: () => void;
 };
 
-export type ThemeSelector<
-  TThemes extends BaseThemeMap = ThemeMap,
-  Selected = unknown,
-> = (value: ThemeContextValue<TThemes>) => Selected;
+export type ThemeSelector<TThemes extends BaseThemeMap = ThemeMap, Selected = unknown> = (
+  value: ThemeContextValue<TThemes>,
+) => Selected;
 
 export type ThemeSelectorEqualityFn<Selected = unknown> = (
   previous: Selected,
@@ -171,44 +170,28 @@ export function ThemeProvider<const TThemes extends BaseThemeMap>({
   initialTheme,
   children,
 }: ThemeProviderProps<TThemes>) {
-  const themeNames = useMemo(
-    () => Object.keys(themes) as Array<ThemeName<TThemes>>,
-    [themes],
-  );
+  const themeNames = useMemo(() => Object.keys(themes) as Array<ThemeName<TThemes>>, [themes]);
 
   if (themeNames.length === 0) {
     throw new Error("ThemeProvider requires at least one theme");
   }
 
   if (!themeNames.includes(initialTheme)) {
-    throw new Error(
-      `ThemeProvider initialTheme "${initialTheme}" is not registered`,
-    );
+    throw new Error(`ThemeProvider initialTheme "${initialTheme}" is not registered`);
   }
 
   const storeRef = useRef<ThemeStore | null>(null);
 
   if (!storeRef.current) {
-    storeRef.current = createThemeStore(
-      themes,
-      themeNames as string[],
-      initialTheme,
-    );
+    storeRef.current = createThemeStore(themes, themeNames as string[], initialTheme);
   }
 
   storeRef.current.sync(themes, themeNames as string[]);
 
-  return (
-    <ThemeContext.Provider value={storeRef.current}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={storeRef.current}>{children}</ThemeContext.Provider>;
 }
 
-export function useThemeSelector<
-  TThemes extends BaseThemeMap = ThemeMap,
-  Selected = unknown,
->(
+export function useThemeSelector<TThemes extends BaseThemeMap = ThemeMap, Selected = unknown>(
   selector: ThemeSelector<TThemes, Selected>,
   equalityFn?: ThemeSelectorEqualityFn<Selected>,
 ): Selected {
@@ -219,8 +202,7 @@ export function useThemeSelector<
   } | null>(null);
 
   const getSelectedSnapshot = useCallback(() => {
-    const snapshot =
-      store.getSnapshot() as unknown as ThemeContextValue<TThemes>;
+    const snapshot = store.getSnapshot() as unknown as ThemeContextValue<TThemes>;
     const cachedSelection = selectionRef.current;
 
     if (cachedSelection?.snapshot === snapshot) {
@@ -229,8 +211,7 @@ export function useThemeSelector<
 
     const nextSelected = selector(snapshot);
     const isEqual =
-      equalityFn ??
-      ((previous: Selected, next: Selected) => Object.is(previous, next));
+      equalityFn ?? ((previous: Selected, next: Selected) => Object.is(previous, next));
 
     if (cachedSelection && isEqual(cachedSelection.selected, nextSelected)) {
       selectionRef.current = {
@@ -249,15 +230,9 @@ export function useThemeSelector<
     return nextSelected;
   }, [equalityFn, selector, store]);
 
-  return useSyncExternalStore(
-    store.subscribe,
-    getSelectedSnapshot,
-    getSelectedSnapshot,
-  );
+  return useSyncExternalStore(store.subscribe, getSelectedSnapshot, getSelectedSnapshot);
 }
 
 export function useTheme<TThemes extends BaseThemeMap = ThemeMap>() {
-  return useThemeSelector<TThemes, ThemeContextValue<TThemes>>(
-    (context) => context,
-  );
+  return useThemeSelector<TThemes, ThemeContextValue<TThemes>>((context) => context);
 }

@@ -4,6 +4,13 @@ import type { AppTheme, ThemeMap } from "./themes";
 import { useThemeSelector } from "./theme-provider";
 
 const objectIs = Object.is;
+export const THEMED_STYLES_CACHE_LIMIT = 32;
+
+type CachedStylesEntry<Selected, Styles> = {
+  selected: Selected;
+  styles: Styles;
+  active: boolean;
+};
 
 function isObjectLike(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -34,10 +41,106 @@ function shallowEqual(left: unknown, right: unknown) {
   }
 
   return leftKeys.every(
-    (key) =>
-      Object.prototype.hasOwnProperty.call(right, key) &&
-      objectIs(left[key], right[key]),
+    (key) => Object.prototype.hasOwnProperty.call(right, key) && objectIs(left[key], right[key]),
   );
+}
+
+function createStylesCache<Selected, Styles extends StyleSheet.NamedStyles<Styles>>(
+  factory: (selected: Selected) => Styles,
+  equalityFn: (left: Selected, right: Selected) => boolean,
+) {
+  const objectCache = new WeakMap<object, CachedStylesEntry<Selected, Styles>>();
+  const primitiveCache = new Map<Selected, CachedStylesEntry<Selected, Styles>>();
+  const entries: Array<CachedStylesEntry<Selected, Styles>> = [];
+
+  const storeCachedEntry = (selected: Selected, entry: CachedStylesEntry<Selected, Styles>) => {
+    if (isObjectLike(selected)) {
+      objectCache.set(selected, entry);
+      return;
+    }
+
+    primitiveCache.set(selected, entry);
+  };
+
+  const deleteCachedEntry = (selected: Selected) => {
+    if (isObjectLike(selected)) {
+      const cachedEntry = objectCache.get(selected);
+
+      if (cachedEntry) {
+        cachedEntry.active = false;
+      }
+
+      return;
+    }
+
+    primitiveCache.delete(selected);
+  };
+
+  const moveToMostRecent = (entry: CachedStylesEntry<Selected, Styles>) => {
+    const entryIndex = entries.indexOf(entry);
+
+    if (entryIndex <= -1 || entryIndex === entries.length - 1) {
+      return;
+    }
+
+    entries.splice(entryIndex, 1);
+    entries.push(entry);
+  };
+
+  const evictLeastRecentlyUsed = () => {
+    if (entries.length < THEMED_STYLES_CACHE_LIMIT) {
+      return;
+    }
+
+    const oldestEntry = entries.shift();
+
+    if (!oldestEntry) {
+      return;
+    }
+
+    deleteCachedEntry(oldestEntry.selected);
+  };
+
+  return (selected: Selected): Styles => {
+    if (isObjectLike(selected)) {
+      const cachedEntry = objectCache.get(selected);
+
+      if (cachedEntry?.active) {
+        moveToMostRecent(cachedEntry);
+        return cachedEntry.styles;
+      }
+    } else {
+      const cachedEntry = primitiveCache.get(selected);
+
+      if (cachedEntry !== undefined) {
+        moveToMostRecent(cachedEntry);
+        return cachedEntry.styles;
+      }
+    }
+
+    const matchingEntry = entries.find(
+      (entry) => entry.active && equalityFn(entry.selected, selected),
+    );
+
+    if (matchingEntry) {
+      storeCachedEntry(selected, matchingEntry);
+      moveToMostRecent(matchingEntry);
+      return matchingEntry.styles;
+    }
+
+    const styles = StyleSheet.create(factory(selected)) as Styles;
+    const nextEntry = {
+      selected,
+      styles,
+      active: true,
+    };
+
+    evictLeastRecentlyUsed();
+    entries.push(nextEntry);
+    storeCachedEntry(selected, nextEntry);
+
+    return styles;
+  };
 }
 
 export function createThemedStyles<
@@ -78,14 +181,13 @@ export function createThemedStyles<
   const selector = maybeFactory
     ? (selectorOrFactory as (theme: AppTheme<TThemes>) => Selected)
     : (theme: AppTheme<TThemes>) => theme as Selected;
-  const factory =
-    maybeFactory ??
-    (selectorOrFactory as unknown as (selected: Selected) => Styles);
+  const factory = maybeFactory ?? (selectorOrFactory as unknown as (selected: Selected) => Styles);
   const compareSelected =
     equalityFn ??
     (maybeFactory
       ? (shallowEqual as (left: Selected, right: Selected) => boolean)
       : (objectIs as (left: Selected, right: Selected) => boolean));
+  const getCachedStyles = createStylesCache(factory, compareSelected);
 
   return function useStyles(): Styles {
     const selected = useThemeSelector<TThemes, Selected>(
@@ -93,9 +195,6 @@ export function createThemedStyles<
       compareSelected,
     );
 
-    return useMemo<Styles>(
-      () => StyleSheet.create(factory(selected)),
-      [selected],
-    );
+    return useMemo<Styles>(() => getCachedStyles(selected), [selected]);
   };
 }

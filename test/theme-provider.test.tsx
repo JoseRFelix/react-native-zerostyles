@@ -2,11 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  ThemeProvider,
-  useTheme,
-  useThemeSelector,
-} from "../src/styles/theme-provider";
+import { ThemeProvider, useTheme, useThemeSelector } from "../src/styles/theme-provider";
 
 const themes = {
   light: {
@@ -33,17 +29,13 @@ describe("ThemeProvider rerender behavior", () => {
 
     function ActionOnlyConsumer() {
       actionOnlyRenderSpy();
-      toggleTheme = useThemeSelector<typeof themes, () => void>(
-        (context) => context.toggleTheme,
-      );
+      toggleTheme = useThemeSelector<typeof themes, () => void>((context) => context.toggleTheme);
       return null;
     }
 
     function ThemeNameConsumer() {
       themeNameRenderSpy();
-      useThemeSelector<typeof themes, keyof typeof themes>(
-        (context) => context.themeName,
-      );
+      useThemeSelector<typeof themes, keyof typeof themes>((context) => context.themeName);
       return null;
     }
 
@@ -66,9 +58,7 @@ describe("ThemeProvider rerender behavior", () => {
     });
 
     expect(actionOnlyRenderSpy.mock.calls.length).toBe(actionOnlyRenderCount);
-    expect(themeNameRenderSpy.mock.calls.length).toBeGreaterThan(
-      themeNameRenderCount,
-    );
+    expect(themeNameRenderSpy.mock.calls.length).toBeGreaterThan(themeNameRenderCount);
   });
 
   it("rerenders consumers that read the full theme context", () => {
@@ -98,8 +88,6 @@ describe("ThemeProvider rerender behavior", () => {
       toggleTheme?.();
     });
 
-    expect(fullContextRenderSpy.mock.calls.length).toBeGreaterThan(
-      fullContextRenderCount,
-    );
+    expect(fullContextRenderSpy.mock.calls.length).toBeGreaterThan(fullContextRenderCount);
   });
 });

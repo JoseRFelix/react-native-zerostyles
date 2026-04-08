@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "singleQuote": false,
+  "ignorePatterns": [
+    ".expo",
+    "lib",
+    "node_modules",
+    "pnpm-lock.yaml",
+    "example/zerostyles-app/pnpm-lock.yaml"
+  ],
+  "overrides": [
+    {
+      "files": ["example/zerostyles-app/**/*.{js,jsx,ts,tsx}"],
+      "options": {
+        "singleQuote": true
+      }
+    }
+  ]
+}

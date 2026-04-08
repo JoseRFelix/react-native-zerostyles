@@ -39,5 +39,5 @@ jobs:
       - name: Run lint
         run: pnpm lint
 
-      - name: Run Prettier check
+      - name: Run oxfmt check
         run: pnpm format:check

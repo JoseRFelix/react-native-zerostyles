@@ -6,12 +6,7 @@ export type ThemedViewProps = ViewProps & {
   darkColor?: string;
 };
 
-export function ThemedView({
-  style,
-  lightColor,
-  darkColor,
-  ...otherProps
-}: ThemedViewProps) {
+export function ThemedView({ style, lightColor, darkColor, ...otherProps }: ThemedViewProps) {
   const styles = useThemedViewStyles();
   const backgroundColorOverride = useThemeSelector((context) => {
     if (context.themeName === 'light') {
@@ -25,9 +20,7 @@ export function ThemedView({
     <View
       style={[
         styles.view,
-        backgroundColorOverride
-          ? { backgroundColor: backgroundColorOverride }
-          : undefined,
+        backgroundColorOverride ? { backgroundColor: backgroundColorOverride } : undefined,
         style,
       ]}
       {...otherProps}
