@@ -39,7 +39,25 @@ Commit the generated `.changeset/*.md` file with your code changes.
 Fix selector-based rerenders in `createThemedStyles`.
 ```
 
+## Publishing flow
+
+When the `0.2.0` release is ready to publish, run:
+
+```bash
+pnpm install
+pnpm build
+pnpm typecheck
+pnpm test
+npm whoami
+npm pack --dry-run
+pnpm publish --access public
+git tag v0.2.0
+git push origin main
+git push origin v0.2.0
+```
+
 ## Notes
 
 - `pnpm changeset` is for creating release notes during development.
 - `pnpm version-packages` is the moment where pending changesets are converted into a real version bump.
+

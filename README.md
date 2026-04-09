@@ -1,5 +1,3 @@
-
-
 # react-native-zerostyles
 
 Theming for React Native. No native modules, no babel plugins, no extra dependencies. Just React.
