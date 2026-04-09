@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="assets/logo.png" alt="react-native-zerostyles" width="128" />
-</p>
+
 
 # react-native-zerostyles
 
