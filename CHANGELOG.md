@@ -1,0 +1,10 @@
+# Changelog
+
+## 0.2.0
+
+### Minor Changes
+
+- Initial npm publish of `react-native-zerostyles`.
+- Add typed theme utilities for React Native, including `ThemeProvider`, `useTheme`, `useThemeSelector`, and `createThemedStyles`.
+- Improve selector-based subscriptions so consumers and themed styles only rerender when the selected theme slice changes.
+- Add test coverage for theme selection and rerender behavior.
