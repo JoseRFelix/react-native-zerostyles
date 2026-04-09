@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="react-native-zerostyles" width="160" />
+</p>
+
 # react-native-zerostyles
 
 Theming for React Native. No native modules, no babel plugins, no extra dependencies. Just React.
@@ -105,13 +109,11 @@ Both selectors return **stable references**. `Screen` only re-renders when `back
 
 Wraps the app and provides theme state to all descendants.
 
-
 | Prop           | Type                     | Description                             |
 | -------------- | ------------------------ | --------------------------------------- |
 | `themes`       | `Record<string, object>` | Map of theme objects keyed by name      |
 | `initialTheme` | `string`                 | Key of the theme to use on first render |
 | `children`     | `ReactNode`              | App content                             |
-
 
 `ThemeProvider` must receive at least one theme, and `initialTheme` must match a key in `themes`. Both constraints throw at mount time.
 
@@ -125,7 +127,6 @@ const bg = useThemeSelector((ctx) => ctx.theme.colors.background);
 
 The selector receives the full `ThemeContextValue`:
 
-
 | Field          | Type             | Description                              |
 | -------------- | ---------------- | ---------------------------------------- |
 | `theme`        | `AppTheme`       | The active theme object                  |
@@ -134,7 +135,6 @@ The selector receives the full `ThemeContextValue`:
 | `setThemeName` | `(name) => void` | Switch to a theme by name                |
 | `setTheme`     | `(name) => void` | Alias for `setThemeName`                 |
 | `toggleTheme`  | `() => void`     | Cycles through themes in insertion order |
-
 
 By default values are compared with `Object.is`. Pass a custom `equalityFn` as the second argument for structural comparison.
 
