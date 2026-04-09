@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo.png" alt="react-native-zerostyles" width="160" />
+  <img src="assets/logo.png" alt="react-native-zerostyles" width="180" />
 </p>
 
-# react-native-zerostyles
+<h1 align="center">react-native-zerostyles</h1>
 
 Theming for React Native. No native modules, no babel plugins, no extra dependencies. Just React.
 
