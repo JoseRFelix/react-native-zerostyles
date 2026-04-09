@@ -13,7 +13,7 @@ pnpm test
 
 ## Publishing
 
-Manual publish instructions live in `PUBLISHING.md`.
+Manual publish instructions using `changesets` live in `PUBLISHING.md`.
 
 ## Basic usage
 
@@ -118,3 +118,4 @@ Automatic property tracking is not supported. `createThemedStyles((theme) => ...
 - `useTheme()` subscribes to the full theme context and rerenders on any theme change.
 - `useThemeSelector(...)` subscribes to the selected value only.
 - `createThemedStyles(selector, factory)` is the recommended path for reusable theme-aware styles.
+
