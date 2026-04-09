@@ -26,6 +26,7 @@
     "format:check": "prettier --check .",
     "prepare": "pnpm build",
     "test": "vitest run",
+    "bench": "vitest bench",
     "typecheck": "tsc --noEmit",
     "version-packages": "changeset version"
   },
