@@ -11,6 +11,10 @@ pnpm typecheck
 pnpm test
 ```
 
+## Publishing
+
+Manual publish instructions live in `PUBLISHING.md`.
+
 ## Basic usage
 
 ```tsx
