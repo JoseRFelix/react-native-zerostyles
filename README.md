@@ -263,7 +263,12 @@ type ThemedViewProps = ViewProps & {
   darkColor?: string;
 };
 
-function ThemedView({ style, lightColor, darkColor, ...props }: ThemedViewProps) {
+function ThemedView({
+  style,
+  lightColor,
+  darkColor,
+  ...props
+}: ThemedViewProps) {
   const styles = useStyles();
   const override = useThemeSelector((ctx) =>
     ctx.themeName === "light" ? lightColor : darkColor,
@@ -300,7 +305,12 @@ type ThemedTextProps = TextProps & {
   darkColor?: string;
 };
 
-function ThemedText({ style, lightColor, darkColor, ...props }: ThemedTextProps) {
+function ThemedText({
+  style,
+  lightColor,
+  darkColor,
+  ...props
+}: ThemedTextProps) {
   const styles = useStyles();
   const override = useThemeSelector((ctx) =>
     ctx.themeName === "light" ? lightColor : darkColor,

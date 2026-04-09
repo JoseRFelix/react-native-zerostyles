@@ -100,12 +100,12 @@ The `selector` receives the full `ThemeContextValue`:
 
 ```ts
 type ThemeContextValue = {
-  theme: AppTheme;       // the active theme object
-  themes: ThemeMap;      // all registered themes
-  themeName: ThemeName;  // key of the active theme
+  theme: AppTheme; // the active theme object
+  themes: ThemeMap; // all registered themes
+  themeName: ThemeName; // key of the active theme
   setThemeName: (name: ThemeName) => void;
   setTheme: (name: ThemeName) => void; // alias for setThemeName
-  toggleTheme: () => void;             // cycles through themes
+  toggleTheme: () => void; // cycles through themes
 };
 ```
 
@@ -212,7 +212,11 @@ will auto-complete `colors`, `background`, etc.
 
 ```tsx
 import { ThemeProvider, useThemeSelector } from "react-native-zerostyles";
-import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from "@react-navigation/native";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider as NavThemeProvider,
+} from "@react-navigation/native";
 
 function RootLayout() {
   const themeName = useThemeSelector((ctx) => ctx.themeName);
@@ -248,6 +252,11 @@ function ThemedView({ style, lightColor, darkColor, ...props }) {
   const themeName = useThemeSelector((ctx) => ctx.themeName);
   const override = themeName === "light" ? lightColor : darkColor;
 
-  return <View style={[styles.view, override && { backgroundColor: override }, style]} {...props} />;
+  return (
+    <View
+      style={[styles.view, override && { backgroundColor: override }, style]}
+      {...props}
+    />
+  );
 }
 ```
