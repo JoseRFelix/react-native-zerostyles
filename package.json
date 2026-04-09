@@ -1,7 +1,7 @@
 {
   "name": "react-native-zerostyles",
   "version": "0.2.0",
-  "description": "Base setup for a React Native library.",
+  "description": "Typed theming for React Native with zero dependencies and selector-based subscriptions.",
   "source": "./src/index.ts",
   "main": "./lib/module/index.js",
   "module": "./lib/module/index.js",
@@ -31,7 +31,12 @@
   },
   "keywords": [
     "react-native",
-    "library"
+    "theme",
+    "theming",
+    "dark-mode",
+    "styles",
+    "typescript",
+    "expo"
   ],
   "author": "",
   "license": "MIT",
