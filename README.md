@@ -67,7 +67,22 @@ export const appThemes = {
 } as const;
 ```
 
-### 2. Wrap your app with `ThemeProvider`
+### 2. Make your theme typesafe
+
+Augment the `AppThemes` interface so every hook and style factory infers your concrete theme shape — no extra generics needed:
+
+```tsx
+// constants/theme.ts
+export const appThemes = { ... } as const;
+
+declare module "react-native-zerostyles" {
+  interface AppThemes extends typeof appThemes {}
+}
+```
+
+After this, `useThemeSelector((ctx) => ctx.theme.colors.background)` will autocomplete `colors`, `background`, theme names, and everything else.
+
+### 3. Wrap your app with `ThemeProvider`
 
 ```tsx
 import { ThemeProvider } from "react-native-zerostyles";
@@ -82,7 +97,7 @@ export default function App() {
 }
 ```
 
-### 3. Subscribe to theme values
+### 4. Subscribe to theme values
 
 ```tsx
 import { useThemeSelector } from "react-native-zerostyles";
