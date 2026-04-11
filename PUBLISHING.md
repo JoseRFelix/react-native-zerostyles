@@ -60,4 +60,3 @@ git push origin v0.2.0
 
 - `pnpm changeset` is for creating release notes during development.
 - `pnpm version-packages` is the moment where pending changesets are converted into a real version bump.
-
