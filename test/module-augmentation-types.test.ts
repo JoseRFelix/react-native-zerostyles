@@ -95,7 +95,12 @@ function compileConsumer(consumerSource: string) {
   const originalGetDirectories = host.getDirectories?.bind(host);
   const originalRealpath = host.realpath?.bind(host);
 
-  host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNew) => {
+  host.getSourceFile = (
+    fileName,
+    languageVersion,
+    onError,
+    shouldCreateNew,
+  ) => {
     const normalizedFileName = normalizePath(fileName);
     const sourceText = allFiles.get(normalizedFileName);
 
@@ -143,7 +148,10 @@ function compileConsumer(consumerSource: string) {
   host.realpath = (path) => {
     const normalizedPath = normalizePath(path);
 
-    if (allFiles.has(normalizedPath) || virtualDirectories.has(normalizedPath)) {
+    if (
+      allFiles.has(normalizedPath) ||
+      virtualDirectories.has(normalizedPath)
+    ) {
       return normalizedPath;
     }
 
