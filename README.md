@@ -75,8 +75,11 @@ Augment the `AppThemes` interface so every hook and style factory infers your co
 // constants/theme.ts
 export const appThemes = { ... } as const;
 
+export type AppThemesMap = typeof appThemes;
+
 declare module "react-native-zerostyles" {
-  interface AppThemes extends typeof appThemes {}
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- required for module augmentation
+  interface AppThemes extends AppThemesMap {}
 }
 ```
 
@@ -218,14 +221,41 @@ Augment the `AppThemes` interface so all hooks and factories infer your concrete
 // constants/theme.ts
 export const appThemes = { light: { ... }, dark: { ... } } as const;
 
-export type ExampleThemes = typeof appThemes;
+export type AppThemesMap = typeof appThemes;
 
 declare module "react-native-zerostyles" {
-  interface AppThemes extends ExampleThemes {}
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- required for module augmentation
+  interface AppThemes extends AppThemesMap {}
 }
 ```
 
 After augmentation, `useThemeSelector((ctx) => ctx.theme.colors.background)` will auto-complete `colors`, `background`, etc.
+
+The alias-based `extends` form above is the simplest setup, but the explicit-key
+interface form works too:
+
+```tsx
+declare module "react-native-zerostyles" {
+  interface AppThemes {
+    light: typeof appThemes.light;
+    dark: typeof appThemes.dark;
+  }
+}
+```
+
+If that explicit form lives in a separate file, use a value import, not
+`import type`:
+
+```tsx
+import { appThemes } from "./constants/theme";
+
+declare module "react-native-zerostyles" {
+  interface AppThemes {
+    light: typeof appThemes.light;
+    dark: typeof appThemes.dark;
+  }
+}
+```
 
 ## Examples
 

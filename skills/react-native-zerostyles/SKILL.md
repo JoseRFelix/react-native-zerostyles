@@ -172,18 +172,44 @@ theme shapes without extra generics:
 
 ```tsx
 // e.g. constants/theme.ts
-import type { appThemes } from "./my-themes";
+import { appThemes } from "./my-themes";
+
+export type AppThemesMap = typeof appThemes;
 
 declare module "react-native-zerostyles" {
-  interface AppThemes {
-    light: (typeof appThemes)["light"];
-    dark: (typeof appThemes)["dark"];
-  }
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- required for module augmentation
+  interface AppThemes extends AppThemesMap {}
 }
 ```
 
 After augmentation, `useThemeSelector((ctx) => ctx.theme.colors.background)`
 will auto-complete `colors`, `background`, etc.
+
+The alias-based `extends` form above is the simplest setup, but the explicit-key
+interface form works too:
+
+```tsx
+declare module "react-native-zerostyles" {
+  interface AppThemes {
+    light: typeof appThemes.light;
+    dark: typeof appThemes.dark;
+  }
+}
+```
+
+If that explicit form lives in a separate file, use a value import instead of
+`import type`:
+
+```tsx
+import { appThemes } from "./my-themes";
+
+declare module "react-native-zerostyles" {
+  interface AppThemes {
+    light: typeof appThemes.light;
+    dark: typeof appThemes.dark;
+  }
+}
+```
 
 ## Important Guidelines
 

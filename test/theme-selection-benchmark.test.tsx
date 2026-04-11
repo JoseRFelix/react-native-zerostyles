@@ -40,6 +40,7 @@ const themes = {
 } as const;
 
 type Themes = typeof themes;
+type ThemeColors = Themes[keyof Themes]["colors"];
 
 function createRenderCounter() {
   const spy = vi.fn();
@@ -223,7 +224,7 @@ describe("Theme selection re-render optimization", () => {
 
     it("2-arg form re-renders when the selected slice differs between themes", () => {
       const useStyles = createThemedStyles<
-        typeof themes.light.colors,
+        ThemeColors,
         { text: { color: string } },
         Themes
       >(
@@ -554,7 +555,7 @@ describe("Theme selection re-render optimization", () => {
 
     it("ThemedText pattern: colors selector re-renders only when colors change", () => {
       const useThemedTextStyles = createThemedStyles<
-        typeof themes.light.colors,
+        ThemeColors,
         { base: { color: string }; link: { color: string } },
         Themes
       >(
@@ -670,7 +671,7 @@ describe("Theme selection re-render optimization", () => {
       );
 
       const useTextStyles = createThemedStyles<
-        typeof themes.light.colors,
+        ThemeColors,
         { base: { color: string } },
         Themes
       >(
