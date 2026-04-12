@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- Fix image url and add homepage/repository url so that info is correctly displayed in npm.
+
 ## 0.2.1
 
 ### Patch Changes
