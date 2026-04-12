@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="react-native-zerostyles" width="180" />
+  <img src="https://raw.githubusercontent.com/JoseRFelix/react-native-zerostyles/main/assets/logo.png" alt="react-native-zerostyles" width="180" />
 </p>
 
 <h1 align="center">react-native-zerostyles</h1>

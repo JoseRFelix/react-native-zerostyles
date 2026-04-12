@@ -41,6 +41,11 @@
   ],
   "author": "",
   "license": "MIT",
+  "homepage": "https://github.com/JoseRFelix/react-native-zerostyles#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoseRFelix/react-native-zerostyles.git"
+  },
   "publishConfig": {
     "access": "public"
   },
