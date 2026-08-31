@@ -9,7 +9,7 @@ description:
 license: MIT
 metadata:
   author: JoseRFelix
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # react-native-zerostyles
@@ -143,7 +143,8 @@ const { theme, themeName, toggleTheme } = useTheme();
 Factory that returns a `useStyles` hook. Each generated hook has a bounded,
 eight-entry `StyleSheet.create` cache shared by its component instances. A
 cached style is reused when the selected theme slice is equal to a recent
-selection.
+selection. The selector and cache lookup run once per active theme object, and
+all subscribing instances share the resulting style snapshot.
 
 **Full theme (re-renders on any theme change):**
 
@@ -170,8 +171,10 @@ const useStyles = createThemedStyles(
 );
 ```
 
-The two-argument form uses **shallow equality** by default. A third argument
-accepts a custom equality function.
+The two-argument form uses **shallow equality** by default for arrays, plain
+objects, and null-prototype objects. `Date`, `Map`, `Set`, class instances, and
+other non-plain values compare by identity. A third argument accepts a custom
+equality function when those values need structural semantics.
 
 Define generated hooks at module scope and keep style factories pure so all
 instances share the cache safely.

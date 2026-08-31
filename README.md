@@ -221,10 +221,15 @@ const useStyles = createThemedStyles(
 );
 ```
 
-The two-argument form uses **shallow equality** by default. Pass a custom equality function as the third argument when needed.
+The two-argument form uses **shallow equality** by default for arrays, plain
+objects, and null-prototype objects. Non-plain values such as `Date`, `Map`,
+`Set`, and class instances compare by identity; pass a custom equality function
+as the third argument when they need value semantics.
 
 Define the generated hook at module scope and keep its factory pure. That lets
-every component instance share the cache and makes render order irrelevant.
+every component instance share the cache and makes render order irrelevant. A
+generated hook evaluates its selector and cache lookup once per active theme
+object, then shares that style snapshot with every subscribing instance.
 
 **Multiple slices:**
 
@@ -461,21 +466,28 @@ hook to keep memory use predictable.
 ### Timing (vitest bench)
 
 The harness separates initial mounting from store updates so update numbers do
-not include render setup or cleanup. A representative local run in jsdom on
-August 31, 2026 produced:
+not include render setup or cleanup. Three independent local jsdom runs on
+August 31, 2026 produced the following averages of each run's median:
 
-| Scenario                                    | Optimized mean | Comparison mean | Improvement |
-| ------------------------------------------- | -------------- | --------------- | ----------- |
-| 1,000 stable selector consumers, 1 toggle   | 0.043 ms       | 0.958 ms        | **22.6x**   |
-| 100 stable selector consumers, 10 toggles   | 0.029 ms       | 0.962 ms        | **33.8x**   |
-| 1,000 cached style consumers, initial mount | 2.569 ms       | 2.810 ms        | **1.09x**   |
-| 1,000 cached style consumers, theme update  | 2.078 ms       | 2.230 ms        | **1.07x**   |
+| Scenario                                    | Optimized median | Comparison median | Improvement |
+| ------------------------------------------- | ---------------- | ----------------- | ----------- |
+| 1,000 stable selector consumers, 1 toggle   | 0.040 ms         | 0.906 ms          | **22.8x**   |
+| 100 stable selector consumers, 10 toggles   | 0.028 ms         | 0.882 ms          | **31.7x**   |
+| 1,000 cached style consumers, initial mount | 2.205 ms         | 2.388 ms          | **1.08x**   |
+| 1,000 cached style consumers, theme update  | 1.733 ms         | 2.067 ms          | **1.19x**   |
 
 Selector comparisons use full-context subscriptions as the baseline. Style
 comparisons use the former per-instance style creation behavior as the
 baseline. Initial selector mounts remain more expensive than full-context
 mounts because each consumer sets up selector memoization; the benefit appears
 on updates that leave the selected value unchanged.
+
+For the shared-snapshot optimization specifically, three runs of the previous
+implementation and three runs of the current implementation reduced the
+1,000-consumer cached-style update median from **2.039 ms to 1.733 ms
+(15.0%)**. Average minimum and p75 latency fell by 15.6% and 14.8%,
+respectively. Relative mount performance stayed within the benchmark's normal
+run-to-run variation.
 
 These are development-mode jsdom microbenchmarks, not device frame-time
 guarantees. Use release builds on Hermes to validate application-level
@@ -493,7 +505,17 @@ pnpm bench
 
 # Timing benchmarks plus a JSON artifact
 pnpm bench:ci
+
+# Release-mode Hermes benchmark on the Expo example
+pnpm --dir example/zerostyles-app benchmark:ios
+pnpm --dir example/zerostyles-app benchmark:android
 ```
+
+For the native run, open **Hermes benchmark** in the example app and tap **Run
+benchmark**. It records committed wall-clock time for 1,000 consumers over 12
+mount samples and 30 theme updates, comparing the shared cached hook with
+per-instance `StyleSheet.create`. Use a Release build; development builds add
+React diagnostics and are not comparable.
 
 The deterministic performance assertions live in
 `test/theme-selection-benchmark.test.tsx` and
@@ -505,6 +527,7 @@ The deterministic performance assertions live in
 ```bash
 pnpm install
 pnpm build
+pnpm package:check
 pnpm typecheck
 pnpm test
 pnpm bench

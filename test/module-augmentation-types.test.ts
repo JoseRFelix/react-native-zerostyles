@@ -35,7 +35,6 @@ const packageRoot = joinPath(
 const consumerPath = joinPath(virtualRoot, "consumer.tsx");
 
 const packageFiles = [
-  "package.json",
   "src/index.ts",
   "src/styles/index.ts",
   "src/styles/themes/index.ts",
@@ -44,12 +43,28 @@ const packageFiles = [
   "src/styles/create-themed-styles.ts",
 ] as const;
 
-const virtualFiles = new Map<string, string>(
-  packageFiles.map((relativePath) => [
-    joinPath(packageRoot, relativePath),
-    ts.sys.readFile(joinPath(workspaceRoot, relativePath)) ?? "",
-  ]),
-);
+const sourcePackageJson = JSON.stringify({
+  name: "react-native-zerostyles",
+  type: "module",
+  types: "./src/index.ts",
+  exports: {
+    ".": {
+      types: "./src/index.ts",
+      default: "./src/index.ts",
+    },
+  },
+});
+
+const virtualFiles = new Map<string, string>([
+  [joinPath(packageRoot, "package.json"), sourcePackageJson],
+  ...packageFiles.map(
+    (relativePath) =>
+      [
+        joinPath(packageRoot, relativePath),
+        ts.sys.readFile(joinPath(workspaceRoot, relativePath)) ?? "",
+      ] as const,
+  ),
+]);
 
 function getVirtualDirectories() {
   const directories = new Set<string>();

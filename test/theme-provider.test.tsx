@@ -129,4 +129,34 @@ describe("ThemeProvider rerender behavior", () => {
 
     expect(selectedValue).toBe("light");
   });
+
+  it("ignores inherited object properties as requested theme names", () => {
+    let setThemeName: ((name: keyof typeof themes) => void) | undefined;
+    let themeName: keyof typeof themes | undefined;
+
+    function Consumer() {
+      setThemeName = useThemeSelector<
+        typeof themes,
+        (name: keyof typeof themes) => void
+      >((context) => context.setThemeName);
+      themeName = useThemeSelector<typeof themes, keyof typeof themes>(
+        (context) => context.themeName,
+      );
+      return null;
+    }
+
+    act(() => {
+      render(
+        <ThemeProvider themes={themes} initialTheme="light">
+          <Consumer />
+        </ThemeProvider>,
+      );
+    });
+
+    act(() => {
+      setThemeName?.("toString" as keyof typeof themes);
+    });
+
+    expect(themeName).toBe("light");
+  });
 });

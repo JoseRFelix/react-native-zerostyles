@@ -5,7 +5,7 @@ import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { createThemedStyles, useThemeSelector } from 'react-native-zerostyles';
 
 export default function HomeScreen() {
@@ -102,6 +102,17 @@ export default function HomeScreen() {
           <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
           <ThemedText type="defaultSemiBold">app-example</ThemedText>.
         </ThemedText>
+      </ThemedView>
+      <ThemedView style={styles.stepContainer}>
+        <Link href={'/benchmark' as Href} asChild>
+          <TouchableOpacity style={styles.themeButton} activeOpacity={0.8}>
+            <ThemedText
+              style={[styles.themeButtonText, { color: buttonTextColor }]}
+            >
+              Open release benchmark
+            </ThemedText>
+          </TouchableOpacity>
+        </Link>
       </ThemedView>
     </ParallaxScrollView>
   );

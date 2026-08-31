@@ -12,13 +12,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22.13.0
           cache: pnpm
@@ -41,7 +41,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-results
           path: benchmark-results.json
@@ -51,11 +51,49 @@ jobs:
       - name: Run typecheck
         run: pnpm typecheck
 
+      - name: Typecheck example app
+        run: pnpm typecheck:example
+
       - name: Run build
         run: pnpm build
+
+      - name: Validate package entry points
+        run: pnpm package:check
 
       - name: Run lint
         run: pnpm lint
 
       - name: Run Prettier check
         run: pnpm format:check
+
+  react-18-compatibility:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install React 18 compatibility versions
+        run: >-
+          pnpm add --save-dev --lockfile=false --ignore-scripts
+          react@18.3.1 react-dom@18.3.1
+          @types/react@18.3.31 @types/react-dom@18.3.7
+
+      - name: Run tests with React 18
+        run: pnpm test
+
+      - name: Run typecheck with React 18
+        run: pnpm typecheck

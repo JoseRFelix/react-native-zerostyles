@@ -140,6 +140,46 @@ describe("ThemeProvider prop updates", () => {
     expect(onThemeChange).toHaveBeenCalledWith("dark");
   });
 
+  it("uses the latest onThemeChange callback", () => {
+    const firstOnThemeChange = vi.fn();
+    const latestOnThemeChange = vi.fn();
+    let toggleTheme: (() => void) | undefined;
+
+    function Consumer() {
+      toggleTheme = useThemeSelector<typeof themes, () => void>(
+        (context) => context.toggleTheme,
+      );
+      return null;
+    }
+
+    const view = render(
+      <ThemeProvider
+        themes={themes}
+        themeName="light"
+        onThemeChange={firstOnThemeChange}
+      >
+        <Consumer />
+      </ThemeProvider>,
+    );
+
+    view.rerender(
+      <ThemeProvider
+        themes={themes}
+        themeName="light"
+        onThemeChange={latestOnThemeChange}
+      >
+        <Consumer />
+      </ThemeProvider>,
+    );
+
+    act(() => {
+      toggleTheme?.();
+    });
+
+    expect(firstOnThemeChange).not.toHaveBeenCalled();
+    expect(latestOnThemeChange).toHaveBeenCalledWith("dark");
+  });
+
   it("notifies memoized consumers when the themes map is replaced", () => {
     let observedBackground: string | undefined;
 

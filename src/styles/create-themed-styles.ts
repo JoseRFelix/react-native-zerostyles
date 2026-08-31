@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { StyleSheet } from "react-native";
 import type { AppTheme, ThemeMap } from "./themes";
 import { useThemeSelector, type ThemeContextValue } from "./theme-provider";
@@ -20,15 +19,43 @@ function shallowEqual(left: unknown, right: unknown) {
     return true;
   }
 
-  if (Array.isArray(left) && Array.isArray(right)) {
+  const leftIsArray = Array.isArray(left);
+  const rightIsArray = Array.isArray(right);
+
+  if (leftIsArray || rightIsArray) {
+    if (!leftIsArray || !rightIsArray) {
+      return false;
+    }
+
     if (left.length !== right.length) {
       return false;
     }
 
-    return left.every((value, index) => objectIs(value, right[index]));
+    for (let index = 0; index < left.length; index += 1) {
+      const leftHasValue = Object.prototype.hasOwnProperty.call(left, index);
+
+      if (
+        leftHasValue !== Object.prototype.hasOwnProperty.call(right, index) ||
+        (leftHasValue && !objectIs(left[index], right[index]))
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   if (!isObjectLike(left) || !isObjectLike(right)) {
+    return false;
+  }
+
+  if (Object.getPrototypeOf(left) !== Object.getPrototypeOf(right)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(left);
+
+  if (prototype !== Object.prototype && prototype !== null) {
     return false;
   }
 
@@ -93,13 +120,19 @@ export function createThemedStyles<
       ? (shallowEqual as (left: Selected, right: Selected) => boolean)
       : (objectIs as (left: Selected, right: Selected) => boolean));
   const styleCache: Array<StyleCacheEntry<Selected, Styles>> = [];
-  const selectTheme = (context: ThemeContextValue<TThemes>) =>
-    selector(context.theme);
+  let hasLastTheme = false;
+  let lastTheme: AppTheme<TThemes> | undefined;
+  let lastStyles: Styles | undefined;
 
   const getOrCreateStyles = (selected: Selected) => {
-    const cachedIndex = styleCache.findIndex((entry) =>
-      compareSelected(entry.selected, selected),
-    );
+    let cachedIndex = -1;
+
+    for (let index = styleCache.length - 1; index >= 0; index -= 1) {
+      if (compareSelected(styleCache[index]!.selected, selected)) {
+        cachedIndex = index;
+        break;
+      }
+    }
 
     if (cachedIndex >= 0) {
       const cachedEntry = styleCache[cachedIndex]!;
@@ -122,12 +155,19 @@ export function createThemedStyles<
     return styles;
   };
 
-  return function useStyles(): Styles {
-    const selected = useThemeSelector<TThemes, Selected>(
-      selectTheme,
-      compareSelected,
-    );
+  const selectStyles = (context: ThemeContextValue<TThemes>) => {
+    if (hasLastTheme && objectIs(lastTheme, context.theme)) {
+      return lastStyles!;
+    }
 
-    return useMemo<Styles>(() => getOrCreateStyles(selected), [selected]);
+    const styles = getOrCreateStyles(selector(context.theme));
+    hasLastTheme = true;
+    lastTheme = context.theme;
+    lastStyles = styles;
+    return styles;
+  };
+
+  return function useStyles(): Styles {
+    return useThemeSelector<TThemes, Styles>(selectStyles);
   };
 }

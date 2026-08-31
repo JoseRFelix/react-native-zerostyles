@@ -25,6 +25,10 @@ const RootNavigator = memo(function RootNavigator() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="benchmark"
+          options={{ title: 'Hermes benchmark' }}
+        />
+        <Stack.Screen
           name="modal"
           options={{ presentation: 'modal', title: 'Modal' }}
         />

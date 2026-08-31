@@ -76,13 +76,21 @@ type ThemeStore = {
 };
 
 const ThemeContext = createContext<ThemeStore | null>(null);
+const runtimeGlobals = globalThis as typeof globalThis & {
+  navigator?: { product?: string };
+  window?: { document?: unknown };
+};
+const canUseLayoutEffect =
+  runtimeGlobals.navigator?.product === "ReactNative" ||
+  runtimeGlobals.window?.document !== undefined;
+const useStoreSyncEffect = canUseLayoutEffect ? useLayoutEffect : useEffect;
 
 function getActiveThemeName(
   themes: BaseThemeMap,
   themeNames: string[],
   requestedThemeName: string,
 ) {
-  if (themes[requestedThemeName]) {
+  if (Object.prototype.hasOwnProperty.call(themes, requestedThemeName)) {
     return requestedThemeName;
   }
 
@@ -360,7 +368,7 @@ export function ThemeProvider<const TThemes extends BaseThemeMap>({
     onThemeChange,
   });
 
-  useLayoutEffect(() => {
+  useStoreSyncEffect(() => {
     const previousInputs = syncInputsRef.current;
 
     if (

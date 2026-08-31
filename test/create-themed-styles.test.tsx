@@ -1,4 +1,4 @@
-import React from "react";
+import React, { StrictMode } from "react";
 import { render } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -215,6 +215,194 @@ describe("createThemedStyles", () => {
 
     expect(factory).toHaveBeenCalledTimes(2);
     expect(currentStyles).toBe(firstStyles);
+  });
+
+  it("selects and creates styles once per theme across component instances", () => {
+    const selector = vi.fn(
+      (theme: (typeof themes)[keyof typeof themes]) => theme.spacing,
+    );
+    const factory = vi.fn((spacing: { md: number }) => ({
+      container: { padding: spacing.md },
+    }));
+    const useStyles = createThemedStyles<
+      { md: number },
+      { container: { padding: number } },
+      typeof themes
+    >(selector, factory);
+    let toggleTheme: (() => void) | undefined;
+
+    function StylesConsumer() {
+      useStyles();
+      return null;
+    }
+
+    function ToggleConsumer() {
+      toggleTheme = useThemeSelector<typeof themes, () => void>(
+        (context) => context.toggleTheme,
+      );
+      return null;
+    }
+
+    act(() => {
+      render(
+        <ThemeProvider themes={themes} initialTheme="light">
+          {Array.from({ length: 100 }, (_, index) => (
+            <StylesConsumer key={index} />
+          ))}
+          <ToggleConsumer />
+        </ThemeProvider>,
+      );
+    });
+
+    expect(selector).toHaveBeenCalledTimes(1);
+    expect(factory).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      toggleTheme?.();
+    });
+
+    expect(selector).toHaveBeenCalledTimes(2);
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not shallow-compare distinct non-plain selected values as equal", () => {
+    const datedThemes = {
+      early: { updatedAt: new Date(1) },
+      late: { updatedAt: new Date(2) },
+    } as const;
+    const factory = vi.fn((updatedAt: Date) => ({
+      container: { opacity: updatedAt.getTime() },
+    }));
+    const useStyles = createThemedStyles<
+      Date,
+      { container: { opacity: number } },
+      typeof datedThemes
+    >((theme) => theme.updatedAt, factory);
+    let toggleTheme: (() => void) | undefined;
+    let opacity: number | undefined;
+
+    function Consumer() {
+      opacity = useStyles().container.opacity;
+      toggleTheme = useThemeSelector<typeof datedThemes, () => void>(
+        (context) => context.toggleTheme,
+      );
+      return null;
+    }
+
+    act(() => {
+      render(
+        <ThemeProvider themes={datedThemes} initialTheme="early">
+          <Consumer />
+        </ThemeProvider>,
+      );
+    });
+
+    expect(opacity).toBe(1);
+
+    act(() => {
+      toggleTheme?.();
+    });
+
+    expect(opacity).toBe(2);
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps shared generated hooks isolated across providers", () => {
+    const useStyles = createThemedStyles<
+      { md: number },
+      { container: { padding: number } },
+      typeof themes
+    >(
+      (theme) => theme.spacing,
+      (spacing) => ({
+        container: { padding: spacing.md },
+      }),
+    );
+    const paddings = new Map<string, number>();
+    const toggles = new Map<string, () => void>();
+
+    function Consumer({ id }: { id: string }) {
+      paddings.set(id, useStyles().container.padding);
+      toggles.set(
+        id,
+        useThemeSelector<typeof themes, () => void>(
+          (context) => context.toggleTheme,
+        ),
+      );
+      return null;
+    }
+
+    act(() => {
+      render(
+        <>
+          <ThemeProvider themes={themes} initialTheme="light">
+            <Consumer id="first" />
+          </ThemeProvider>
+          <ThemeProvider themes={themes} initialTheme="dark">
+            <Consumer id="second" />
+          </ThemeProvider>
+        </>,
+      );
+    });
+
+    expect(paddings).toEqual(
+      new Map([
+        ["first", 12],
+        ["second", 20],
+      ]),
+    );
+
+    act(() => {
+      toggles.get("first")?.();
+    });
+
+    expect(paddings).toEqual(
+      new Map([
+        ["first", 20],
+        ["second", 20],
+      ]),
+    );
+  });
+
+  it("remains stable through Strict Mode's repeated render lifecycle", () => {
+    const factory = vi.fn((spacing: { md: number }) => ({
+      container: { padding: spacing.md },
+    }));
+    const useStyles = createThemedStyles<
+      { md: number },
+      { container: { padding: number } },
+      typeof themes
+    >((theme) => theme.spacing, factory);
+    let toggleTheme: (() => void) | undefined;
+    let padding: number | undefined;
+
+    function Consumer() {
+      padding = useStyles().container.padding;
+      toggleTheme = useThemeSelector<typeof themes, () => void>(
+        (context) => context.toggleTheme,
+      );
+      return null;
+    }
+
+    act(() => {
+      render(
+        <StrictMode>
+          <ThemeProvider themes={themes} initialTheme="light">
+            <Consumer />
+          </ThemeProvider>
+        </StrictMode>,
+      );
+    });
+
+    expect(padding).toBe(12);
+    expect(factory).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      toggleTheme?.();
+    });
+
+    expect(padding).toBe(20);
+    expect(factory).toHaveBeenCalledTimes(2);
   });
 
   it("bounds each generated hook cache to eight selected values", () => {
