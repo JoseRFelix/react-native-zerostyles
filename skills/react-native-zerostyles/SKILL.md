@@ -9,7 +9,7 @@ description:
 license: MIT
 metadata:
   author: JoseRFelix
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # react-native-zerostyles
@@ -55,7 +55,9 @@ are `react` and `react-native`, which you already have.
 
 ### `ThemeProvider`
 
-Wrap the application root. Accepts a `themes` object and an `initialTheme` key.
+Wrap the application root. Pass `initialTheme` for provider-owned state, or
+`themeName` for state controlled by a system preference or parent component.
+The two modes are mutually exclusive.
 
 ```tsx
 import { ThemeProvider } from "react-native-zerostyles";
@@ -79,6 +81,24 @@ export function App() {
   );
 }
 ```
+
+Use controlled mode when the active theme can change outside the provider:
+
+```tsx
+export function App() {
+  const colorScheme = useColorScheme();
+  const themeName = colorScheme === "dark" ? "dark" : "light";
+
+  return (
+    <ThemeProvider themes={themes} themeName={themeName}>
+      <Screen />
+    </ThemeProvider>
+  );
+}
+```
+
+In controlled mode, `setTheme` and `toggleTheme` call `onThemeChange`. The owner
+must pass the requested name back through `themeName` to apply it.
 
 ### `useThemeSelector(selector, equalityFn?)`
 
@@ -218,15 +238,17 @@ declare module "react-native-zerostyles" {
    automatically track which fields a function reads. Pass an explicit selector
    to get narrow subscriptions.
 
-2. **Keep theme objects reference-stable.** `ThemeProvider` compares theme
-   entries by reference. Define themes as module-level constants or memoize them.
+2. **Keep theme objects reference-stable when possible.** Define themes as
+   module-level constants or memoize them. Replacing the `themes` map is
+   supported and notifies subscribers, while selector equality still prevents
+   unrelated consumer re-renders.
 
 3. **`toggleTheme` cycles through themes** in insertion order. With two themes
    it acts as a simple light/dark toggle; with more it rotates through all of
    them.
 
-4. **`ThemeProvider` must have at least one theme** and `initialTheme` must
-   match a key in `themes`. Both constraints throw at mount time.
+4. **`ThemeProvider` must have at least one theme.** Pass exactly one of
+   `initialTheme` or `themeName`, and make sure it matches a key in `themes`.
 
 5. **Zero dependencies.** The library is pure JS/TS with no runtime
    dependencies beyond `react` and `react-native`. No native modules, no
@@ -258,11 +280,23 @@ function RootLayout() {
 export default function App() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider themes={appThemes} initialTheme={colorScheme ?? "light"}>
+    <ThemeProvider themes={appThemes} themeName={colorScheme ?? "light"}>
       <RootLayout />
     </ThemeProvider>
   );
 }
+```
+
+### Reanimated integration
+
+ZeroStyles returns ordinary React Native styles. Keep themed styles and
+Reanimated worklet styles separate in the style array:
+
+```tsx
+const styles = useStyles();
+const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+return <Animated.View style={[styles.card, animatedStyle]} />;
 ```
 
 ### Themed component with style override

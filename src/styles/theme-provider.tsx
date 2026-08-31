@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
@@ -29,11 +30,24 @@ export type ThemeSelectorEqualityFn<Selected = unknown> = (
   next: Selected,
 ) => boolean;
 
-export type ThemeProviderProps<TThemes extends BaseThemeMap = ThemeMap> = {
+type ThemeProviderBaseProps<TThemes extends BaseThemeMap> = {
   themes: TThemes;
-  initialTheme: ThemeName<TThemes>;
   children: React.ReactNode;
+  onThemeChange?: (name: ThemeName<TThemes>) => void;
 };
+
+export type ThemeProviderProps<TThemes extends BaseThemeMap = ThemeMap> =
+  ThemeProviderBaseProps<TThemes> &
+    (
+      | {
+          initialTheme: ThemeName<TThemes>;
+          themeName?: never;
+        }
+      | {
+          initialTheme?: never;
+          themeName: ThemeName<TThemes>;
+        }
+    );
 
 type InternalThemeContextValue = {
   theme: object;
@@ -47,7 +61,12 @@ type InternalThemeContextValue = {
 type ThemeStore = {
   getSnapshot: () => InternalThemeContextValue;
   subscribe: (listener: () => void) => () => void;
-  sync: (themes: BaseThemeMap, themeNames: string[]) => void;
+  sync: (
+    themes: BaseThemeMap,
+    themeNames: string[],
+    controlledThemeName: string | undefined,
+    onThemeChange: ((name: string) => void) | undefined,
+  ) => void;
 };
 
 const ThemeContext = createContext<ThemeStore | null>(null);
@@ -68,11 +87,15 @@ function createThemeStore(
   themes: BaseThemeMap,
   themeNames: string[],
   initialTheme: string,
+  initialControlledThemeName: string | undefined,
+  initialOnThemeChange: ((name: string) => void) | undefined,
 ): ThemeStore {
   const listeners = new Set<() => void>();
 
   let currentThemes = themes;
   let currentThemeNames = themeNames;
+  let controlledThemeName = initialControlledThemeName;
+  let onThemeChange = initialOnThemeChange;
 
   const notify = () => {
     listeners.forEach((listener) => {
@@ -122,7 +145,21 @@ function createThemeStore(
   };
 
   const setThemeName = (name: string) => {
-    setSnapshot(name);
+    const nextThemeName = getActiveThemeName(
+      currentThemes,
+      currentThemeNames,
+      name,
+    );
+
+    if (nextThemeName === snapshot.themeName) {
+      return;
+    }
+
+    if (controlledThemeName === undefined) {
+      setSnapshot(nextThemeName);
+    }
+
+    onThemeChange?.(nextThemeName);
   };
 
   const toggleTheme = () => {
@@ -134,10 +171,10 @@ function createThemeStore(
     const nextIndex = (currentIndex + 1) % currentThemeNames.length;
     const nextThemeName = currentThemeNames[nextIndex] ?? currentThemeNames[0];
 
-    setSnapshot(nextThemeName);
+    setThemeName(nextThemeName);
   };
 
-  let snapshot = buildSnapshot(initialTheme);
+  let snapshot = buildSnapshot(controlledThemeName ?? initialTheme);
 
   return {
     getSnapshot: () => snapshot,
@@ -148,10 +185,28 @@ function createThemeStore(
         listeners.delete(listener);
       };
     },
-    sync: (nextThemes, nextThemeNames) => {
+    sync: (
+      nextThemes,
+      nextThemeNames,
+      nextControlledThemeName,
+      nextOnThemeChange,
+    ) => {
       currentThemes = nextThemes;
       currentThemeNames = nextThemeNames;
-      snapshot = buildSnapshot(snapshot.themeName, snapshot);
+      controlledThemeName = nextControlledThemeName;
+      onThemeChange = nextOnThemeChange;
+
+      const nextSnapshot = buildSnapshot(
+        controlledThemeName ?? snapshot.themeName,
+        snapshot,
+      );
+
+      if (nextSnapshot === snapshot) {
+        return;
+      }
+
+      snapshot = nextSnapshot;
+      notify();
     },
   };
 }
@@ -169,6 +224,8 @@ function useThemeStore() {
 export function ThemeProvider<const TThemes extends BaseThemeMap>({
   themes,
   initialTheme,
+  themeName,
+  onThemeChange,
   children,
 }: ThemeProviderProps<TThemes>) {
   const themeNames = useMemo(
@@ -180,9 +237,22 @@ export function ThemeProvider<const TThemes extends BaseThemeMap>({
     throw new Error("ThemeProvider requires at least one theme");
   }
 
-  if (!themeNames.includes(initialTheme)) {
+  if (initialTheme !== undefined && themeName !== undefined) {
     throw new Error(
-      `ThemeProvider initialTheme "${initialTheme}" is not registered`,
+      "ThemeProvider accepts either initialTheme or themeName, but not both",
+    );
+  }
+
+  const activeThemeName = themeName ?? initialTheme;
+
+  if (activeThemeName === undefined) {
+    throw new Error("ThemeProvider requires initialTheme or themeName");
+  }
+
+  if (!themeNames.includes(activeThemeName)) {
+    const propName = themeName === undefined ? "initialTheme" : "themeName";
+    throw new Error(
+      `ThemeProvider ${propName} "${activeThemeName}" is not registered`,
     );
   }
 
@@ -192,16 +262,25 @@ export function ThemeProvider<const TThemes extends BaseThemeMap>({
     storeRef.current = createThemeStore(
       themes,
       themeNames as string[],
-      initialTheme,
+      activeThemeName,
+      themeName,
+      onThemeChange as ((name: string) => void) | undefined,
     );
   }
 
-  storeRef.current.sync(themes, themeNames as string[]);
+  const store = storeRef.current;
+
+  useLayoutEffect(() => {
+    store.sync(
+      themes,
+      themeNames as string[],
+      themeName,
+      onThemeChange as ((name: string) => void) | undefined,
+    );
+  }, [onThemeChange, store, themeName, themeNames, themes]);
 
   return (
-    <ThemeContext.Provider value={storeRef.current}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={store}>{children}</ThemeContext.Provider>
   );
 }
 

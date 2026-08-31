@@ -1,9 +1,9 @@
 import {
   DarkTheme,
   DefaultTheme,
+  Stack,
   ThemeProvider as NavigationThemeProvider,
-} from '@react-navigation/native';
-import { Stack } from 'expo-router';
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
@@ -35,10 +35,10 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const initialTheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const themeName = colorScheme === 'dark' ? 'dark' : 'light';
 
   return (
-    <ThemeProvider themes={appThemes} initialTheme={initialTheme}>
+    <ThemeProvider themes={appThemes} themeName={themeName}>
       <RootNavigator />
     </ThemeProvider>
   );

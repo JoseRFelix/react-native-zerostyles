@@ -127,13 +127,35 @@ Both selectors return **stable references**. `Screen` only re-renders when `back
 
 Wraps the app and provides theme state to all descendants.
 
-| Prop           | Type                     | Description                             |
-| -------------- | ------------------------ | --------------------------------------- |
-| `themes`       | `Record<string, object>` | Map of theme objects keyed by name      |
-| `initialTheme` | `string`                 | Key of the theme to use on first render |
-| `children`     | `ReactNode`              | App content                             |
+| Prop            | Type                     | Description                             |
+| --------------- | ------------------------ | --------------------------------------- |
+| `themes`        | `Record<string, object>` | Map of theme objects keyed by name      |
+| `initialTheme`  | `string`                 | Initial key for uncontrolled mode       |
+| `themeName`     | `string`                 | Active key for controlled mode          |
+| `onThemeChange` | `(name) => void`         | Called when a consumer requests a theme |
+| `children`      | `ReactNode`              | App content                             |
 
-`ThemeProvider` must receive at least one theme, and `initialTheme` must match a key in `themes`. Both constraints throw at mount time.
+Pass either `initialTheme` or `themeName`, never both. In uncontrolled mode,
+`setTheme` and `toggleTheme` update the provider directly. In controlled mode,
+they call `onThemeChange`; the owner applies the change by passing a new
+`themeName`.
+
+```tsx
+function SystemThemeProvider({ children }: { children: React.ReactNode }) {
+  const colorScheme = useColorScheme();
+  const themeName = colorScheme === "dark" ? "dark" : "light";
+
+  return (
+    <ThemeProvider themes={appThemes} themeName={themeName}>
+      {children}
+    </ThemeProvider>
+  );
+}
+```
+
+`ThemeProvider` must receive at least one theme, and the selected theme key
+must exist in `themes`. Replacing the `themes` object updates subscribed
+consumers while retaining selector-based render bailouts.
 
 ### `useThemeSelector(selector, equalityFn?)`
 
@@ -289,11 +311,27 @@ export default function RootLayout() {
   return (
     <ThemeProvider
       themes={appThemes}
-      initialTheme={colorScheme === "dark" ? "dark" : "light"}
+      themeName={colorScheme === "dark" ? "dark" : "light"}
     >
       <RootNavigator />
     </ThemeProvider>
   );
+}
+```
+
+### Reanimated
+
+ZeroStyles produces regular React Native styles, so keep themed and animated
+styles as separate entries in the style array:
+
+```tsx
+function AnimatedCard() {
+  const styles = useCardStyles();
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return <Animated.View style={[styles.card, animatedStyle]} />;
 }
 ```
 

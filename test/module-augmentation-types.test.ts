@@ -247,4 +247,57 @@ describe("module augmentation typings", () => {
 
     expect(diagnostics).toEqual([]);
   });
+
+  it("types controlled and uncontrolled ThemeProvider modes", () => {
+    const diagnostics = compileConsumer(`
+      import { ThemeProvider } from "react-native-zerostyles";
+
+      export const appThemes = {
+        light: { colors: { background: "#ffffff" } },
+        dark: { colors: { background: "#000000" } },
+      } as const;
+
+      type AppThemesMap = typeof appThemes;
+
+      declare module "react-native-zerostyles" {
+        interface AppThemes extends AppThemesMap {}
+      }
+
+      const uncontrolled = (
+        <ThemeProvider themes={appThemes} initialTheme="light">
+          <></>
+        </ThemeProvider>
+      );
+
+      const controlled = (
+        <ThemeProvider
+          themes={appThemes}
+          themeName="dark"
+          onThemeChange={(name) => {
+            const typedName: "light" | "dark" = name;
+            void typedName;
+          }}
+        >
+          <></>
+        </ThemeProvider>
+      );
+
+      const invalid = (
+        <ThemeProvider
+          themes={appThemes}
+          initialTheme="light"
+          // @ts-expect-error controlled and uncontrolled props are mutually exclusive
+          themeName="dark"
+        >
+          <></>
+        </ThemeProvider>
+      );
+
+      void uncontrolled;
+      void controlled;
+      void invalid;
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
 });
