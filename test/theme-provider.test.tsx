@@ -102,4 +102,31 @@ describe("ThemeProvider rerender behavior", () => {
       fullContextRenderCount,
     );
   });
+
+  it("uses the latest selector when a consumer rerenders", () => {
+    let selectedValue: string | undefined;
+
+    function Consumer({ selectName }: { selectName: boolean }) {
+      selectedValue = useThemeSelector<typeof themes, string>((context) =>
+        selectName ? context.themeName : context.theme.colors.background,
+      );
+      return null;
+    }
+
+    const view = render(
+      <ThemeProvider themes={themes} initialTheme="light">
+        <Consumer selectName={false} />
+      </ThemeProvider>,
+    );
+
+    expect(selectedValue).toBe("#ffffff");
+
+    view.rerender(
+      <ThemeProvider themes={themes} initialTheme="light">
+        <Consumer selectName />
+      </ThemeProvider>,
+    );
+
+    expect(selectedValue).toBe("light");
+  });
 });

@@ -190,7 +190,11 @@ Prefer `useThemeSelector` when you only need part of the context.
 
 ### `createThemedStyles`
 
-Factory that returns a `useStyles` hook. Styles are created with `StyleSheet.create` inside `useMemo` and only recompute when the selected theme values change.
+Factory that returns a `useStyles` hook. Each generated hook keeps a bounded,
+eight-entry style cache shared by all of its component instances. Styles are
+created with `StyleSheet.create` only when a selected theme value is not already
+cached, so mounting many copies of the same component and switching back to a
+recent theme reuse the same style object.
 
 **Full theme** (re-renders on any theme change):
 
@@ -218,6 +222,9 @@ const useStyles = createThemedStyles(
 ```
 
 The two-argument form uses **shallow equality** by default. Pass a custom equality function as the third argument when needed.
+
+Define the generated hook at module scope and keep its factory pure. That lets
+every component instance share the cache and makes render order irrelevant.
 
 **Multiple slices:**
 
@@ -443,18 +450,37 @@ A separate scaling test renders 150 components (80 stable + 70 changing) and con
 
 Over 10 consecutive theme toggles, 50 stable-slice consumers accumulate **zero** extra renders, while 50 changing-value consumers render exactly **once per toggle** (500 re-renders total). Without selectors, all 100 consumers would render on every toggle — 1,000 re-renders for the same 10 toggles.
 
+### Shared style cache
+
+A deterministic performance test mounts 100 consumers of one generated style
+hook. The style factory runs once instead of 100 times. Switching to a new theme
+adds one factory call, and switching back adds none because the original style
+object is reused. The cache is capped at eight selected values per generated
+hook to keep memory use predictable.
+
 ### Timing (vitest bench)
 
-Measured with `vitest bench` in jsdom. Real React Native rendering would amplify the differences since jsdom skips layout and painting.
+The harness separates initial mounting from store updates so update numbers do
+not include render setup or cleanup. A representative local run in jsdom on
+August 31, 2026 produced:
 
-| Scenario                   | `useThemeSelector` (narrow) | `useTheme` (full context) | Speedup   |
-| -------------------------- | --------------------------- | ------------------------- | --------- |
-| 100 consumers, 1 toggle    | ~2,309 ops/s                | ~1,841 ops/s              | **1.25x** |
-| 500 consumers, 1 toggle    | ~667 ops/s                  | ~412 ops/s                | **1.62x** |
-| 1,000 consumers, 1 toggle  | ~330 ops/s                  | ~221 ops/s                | **1.49x** |
-| 100 consumers, 100 toggles | ~1,201 ops/s                | ~743 ops/s                | **1.62x** |
+| Scenario                                    | Optimized mean | Comparison mean | Improvement |
+| ------------------------------------------- | -------------- | --------------- | ----------- |
+| 1,000 stable selector consumers, 1 toggle   | 0.043 ms       | 0.958 ms        | **22.6x**   |
+| 100 stable selector consumers, 10 toggles   | 0.029 ms       | 0.962 ms        | **33.8x**   |
+| 1,000 cached style consumers, initial mount | 2.569 ms       | 2.810 ms        | **1.09x**   |
+| 1,000 cached style consumers, theme update  | 2.078 ms       | 2.230 ms        | **1.07x**   |
 
-The gap widens with more consumers. At 1 or 2 consumers the selector machinery has a small fixed overhead, but by ~100 consumers the savings dominate and the advantage keeps growing.
+Selector comparisons use full-context subscriptions as the baseline. Style
+comparisons use the former per-instance style creation behavior as the
+baseline. Initial selector mounts remain more expensive than full-context
+mounts because each consumer sets up selector memoization; the benefit appears
+on updates that leave the selected value unchanged.
+
+These are development-mode jsdom microbenchmarks, not device frame-time
+guarantees. Use release builds on Hermes to validate application-level
+performance. CI stores each run as an informational artifact rather than
+enforcing a noisy wall-clock threshold.
 
 ### Running the benchmarks
 
@@ -464,9 +490,15 @@ pnpm test
 
 # Timing benchmarks (vitest bench)
 pnpm bench
+
+# Timing benchmarks plus a JSON artifact
+pnpm bench:ci
 ```
 
-The re-render tests live in `test/theme-selection-benchmark.test.tsx` and the timing benchmarks in `test/theme-selection.bench.tsx`.
+The deterministic performance assertions live in
+`test/theme-selection-benchmark.test.tsx` and
+`test/performance-invariants.test.tsx`; timing benchmarks live in
+`test/theme-selection.bench.tsx`.
 
 ## Contributing
 

@@ -1,9 +1,15 @@
 import { useMemo } from "react";
 import { StyleSheet } from "react-native";
 import type { AppTheme, ThemeMap } from "./themes";
-import { useThemeSelector } from "./theme-provider";
+import { useThemeSelector, type ThemeContextValue } from "./theme-provider";
 
 const objectIs = Object.is;
+const MAX_STYLE_CACHE_ENTRIES = 8;
+
+type StyleCacheEntry<Selected, Styles> = {
+  selected: Selected;
+  styles: Styles;
+};
 
 function isObjectLike(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -86,16 +92,42 @@ export function createThemedStyles<
     (maybeFactory
       ? (shallowEqual as (left: Selected, right: Selected) => boolean)
       : (objectIs as (left: Selected, right: Selected) => boolean));
+  const styleCache: Array<StyleCacheEntry<Selected, Styles>> = [];
+  const selectTheme = (context: ThemeContextValue<TThemes>) =>
+    selector(context.theme);
+
+  const getOrCreateStyles = (selected: Selected) => {
+    const cachedIndex = styleCache.findIndex((entry) =>
+      compareSelected(entry.selected, selected),
+    );
+
+    if (cachedIndex >= 0) {
+      const cachedEntry = styleCache[cachedIndex]!;
+
+      if (cachedIndex !== styleCache.length - 1) {
+        styleCache.splice(cachedIndex, 1);
+        styleCache.push(cachedEntry);
+      }
+
+      return cachedEntry.styles;
+    }
+
+    const styles = StyleSheet.create(factory(selected));
+    styleCache.push({ selected, styles });
+
+    if (styleCache.length > MAX_STYLE_CACHE_ENTRIES) {
+      styleCache.shift();
+    }
+
+    return styles;
+  };
 
   return function useStyles(): Styles {
     const selected = useThemeSelector<TThemes, Selected>(
-      (context) => selector(context.theme),
+      selectTheme,
       compareSelected,
     );
 
-    return useMemo<Styles>(
-      () => StyleSheet.create(factory(selected)),
-      [selected],
-    );
+    return useMemo<Styles>(() => getOrCreateStyles(selected), [selected]);
   };
 }

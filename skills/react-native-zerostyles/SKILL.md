@@ -140,8 +140,10 @@ const { theme, themeName, toggleTheme } = useTheme();
 
 ### `createThemedStyles`
 
-Factory that returns a `useStyles` hook. Styles are built inside `useMemo` with
-`StyleSheet.create` and only recompute when the selected theme slice changes.
+Factory that returns a `useStyles` hook. Each generated hook has a bounded,
+eight-entry `StyleSheet.create` cache shared by its component instances. A
+cached style is reused when the selected theme slice is equal to a recent
+selection.
 
 **Full theme (re-renders on any theme change):**
 
@@ -170,6 +172,9 @@ const useStyles = createThemedStyles(
 
 The two-argument form uses **shallow equality** by default. A third argument
 accepts a custom equality function.
+
+Define generated hooks at module scope and keep style factories pure so all
+instances share the cache safely.
 
 **Multiple slices:**
 
@@ -243,14 +248,18 @@ declare module "react-native-zerostyles" {
    supported and notifies subscribers, while selector equality still prevents
    unrelated consumer re-renders.
 
-3. **`toggleTheme` cycles through themes** in insertion order. With two themes
+3. **Create themed style hooks at module scope.** The generated hook owns the
+   shared bounded cache. Creating it during render prevents cache sharing and
+   needlessly recreates the hook factory.
+
+4. **`toggleTheme` cycles through themes** in insertion order. With two themes
    it acts as a simple light/dark toggle; with more it rotates through all of
    them.
 
-4. **`ThemeProvider` must have at least one theme.** Pass exactly one of
+5. **`ThemeProvider` must have at least one theme.** Pass exactly one of
    `initialTheme` or `themeName`, and make sure it matches a key in `themes`.
 
-5. **Zero dependencies.** The library is pure JS/TS with no runtime
+6. **Zero dependencies.** The library is pure JS/TS with no runtime
    dependencies beyond `react` and `react-native`. No native modules, no
    linking, no babel plugins, no Expo config plugins.
 

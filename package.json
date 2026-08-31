@@ -27,6 +27,7 @@
     "prepare": "pnpm build",
     "test": "vitest run",
     "bench": "vitest bench",
+    "bench:ci": "vitest bench --outputJson benchmark-results.json",
     "typecheck": "tsc --noEmit",
     "version-packages": "changeset version"
   },

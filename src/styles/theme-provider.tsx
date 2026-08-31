@@ -1,7 +1,8 @@
 import React, {
   createContext,
-  useCallback,
   useContext,
+  useDebugValue,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -10,6 +11,11 @@ import React, {
 import type { AppTheme, ThemeMap, ThemeName } from "./themes";
 
 type BaseThemeMap = Record<string, object>;
+
+type SelectorInstance<Selected> = {
+  hasValue: boolean;
+  value: Selected | undefined;
+};
 
 export type ThemeContextValue<TThemes extends BaseThemeMap = ThemeMap> = {
   theme: AppTheme<TThemes>;
@@ -145,6 +151,17 @@ function createThemeStore(
   };
 
   const setThemeName = (name: string) => {
+    if (controlledThemeName === undefined) {
+      const previousThemeName = snapshot.themeName;
+      setSnapshot(name);
+
+      if (snapshot.themeName !== previousThemeName) {
+        onThemeChange?.(snapshot.themeName);
+      }
+
+      return;
+    }
+
     const nextThemeName = getActiveThemeName(
       currentThemes,
       currentThemeNames,
@@ -153,10 +170,6 @@ function createThemeStore(
 
     if (nextThemeName === snapshot.themeName) {
       return;
-    }
-
-    if (controlledThemeName === undefined) {
-      setSnapshot(nextThemeName);
     }
 
     onThemeChange?.(nextThemeName);
@@ -221,6 +234,77 @@ function useThemeStore() {
   return store;
 }
 
+// Follows React's official useSyncExternalStoreWithSelector algorithm. Its
+// memoization state lives inside a render-local closure instead of a ref shared
+// by concurrent render copies.
+function useExternalStoreSelector<Snapshot, Selected>(
+  subscribe: (listener: () => void) => () => void,
+  getSnapshot: () => Snapshot,
+  selector: (snapshot: Snapshot) => Selected,
+  equalityFn?: ThemeSelectorEqualityFn<Selected>,
+) {
+  const instanceRef = useRef<SelectorInstance<Selected> | null>(null);
+
+  if (instanceRef.current === null) {
+    instanceRef.current = { hasValue: false, value: undefined };
+  }
+
+  const instance = instanceRef.current;
+  const getSelection = useMemo(() => {
+    let hasMemo = false;
+    let memoizedSnapshot: Snapshot;
+    let memoizedSelection: Selected;
+
+    return () => {
+      const nextSnapshot = getSnapshot();
+
+      if (!hasMemo) {
+        hasMemo = true;
+        memoizedSnapshot = nextSnapshot;
+
+        const nextSelection = selector(nextSnapshot);
+
+        if (
+          equalityFn &&
+          instance.hasValue &&
+          equalityFn(instance.value as Selected, nextSelection)
+        ) {
+          memoizedSelection = instance.value as Selected;
+          return memoizedSelection;
+        }
+
+        memoizedSelection = nextSelection;
+        return nextSelection;
+      }
+
+      if (Object.is(memoizedSnapshot, nextSnapshot)) {
+        return memoizedSelection;
+      }
+
+      const nextSelection = selector(nextSnapshot);
+
+      if (equalityFn && equalityFn(memoizedSelection, nextSelection)) {
+        memoizedSnapshot = nextSnapshot;
+        return memoizedSelection;
+      }
+
+      memoizedSnapshot = nextSnapshot;
+      memoizedSelection = nextSelection;
+      return nextSelection;
+    };
+  }, [equalityFn, getSnapshot, instance, selector]);
+
+  const selection = useSyncExternalStore(subscribe, getSelection, getSelection);
+
+  useEffect(() => {
+    instance.hasValue = true;
+    instance.value = selection;
+  }, [instance, selection]);
+
+  useDebugValue(selection);
+  return selection;
+}
+
 export function ThemeProvider<const TThemes extends BaseThemeMap>({
   themes,
   initialTheme,
@@ -269,8 +353,32 @@ export function ThemeProvider<const TThemes extends BaseThemeMap>({
   }
 
   const store = storeRef.current;
+  const syncInputsRef = useRef({
+    themes,
+    themeNames,
+    themeName,
+    onThemeChange,
+  });
 
   useLayoutEffect(() => {
+    const previousInputs = syncInputsRef.current;
+
+    if (
+      previousInputs.themes === themes &&
+      previousInputs.themeNames === themeNames &&
+      previousInputs.themeName === themeName &&
+      previousInputs.onThemeChange === onThemeChange
+    ) {
+      return;
+    }
+
+    syncInputsRef.current = {
+      themes,
+      themeNames,
+      themeName,
+      onThemeChange,
+    };
+
     store.sync(
       themes,
       themeNames as string[],
@@ -292,51 +400,20 @@ export function useThemeSelector<
   equalityFn?: ThemeSelectorEqualityFn<Selected>,
 ): Selected {
   const store = useThemeStore();
-  const selectionRef = useRef<{
-    snapshot: ThemeContextValue<TThemes>;
-    selected: Selected;
-  } | null>(null);
-
-  const getSelectedSnapshot = useCallback(() => {
-    const snapshot =
-      store.getSnapshot() as unknown as ThemeContextValue<TThemes>;
-    const cachedSelection = selectionRef.current;
-
-    if (cachedSelection?.snapshot === snapshot) {
-      return cachedSelection.selected;
-    }
-
-    const nextSelected = selector(snapshot);
-    const isEqual =
-      equalityFn ??
-      ((previous: Selected, next: Selected) => Object.is(previous, next));
-
-    if (cachedSelection && isEqual(cachedSelection.selected, nextSelected)) {
-      selectionRef.current = {
-        snapshot,
-        selected: cachedSelection.selected,
-      };
-
-      return cachedSelection.selected;
-    }
-
-    selectionRef.current = {
-      snapshot,
-      selected: nextSelected,
-    };
-
-    return nextSelected;
-  }, [equalityFn, selector, store]);
-
-  return useSyncExternalStore(
+  return useExternalStoreSelector(
     store.subscribe,
-    getSelectedSnapshot,
-    getSelectedSnapshot,
+    store.getSnapshot as unknown as () => ThemeContextValue<TThemes>,
+    selector,
+    equalityFn,
   );
 }
 
 export function useTheme<TThemes extends BaseThemeMap = ThemeMap>() {
-  return useThemeSelector<TThemes, ThemeContextValue<TThemes>>(
-    (context) => context,
-  );
+  const store = useThemeStore();
+
+  return useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
+  ) as unknown as ThemeContextValue<TThemes>;
 }

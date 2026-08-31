@@ -5,6 +5,7 @@ import {
   ThemeProvider as NavigationThemeProvider,
 } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { memo } from 'react';
 import 'react-native-reanimated';
 
 import { appThemes } from '@/constants/theme';
@@ -15,7 +16,7 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-function RootNavigator() {
+const RootNavigator = memo(function RootNavigator() {
   const themeName = useThemeSelector((context) => context.themeName);
   return (
     <NavigationThemeProvider
@@ -31,7 +32,7 @@ function RootNavigator() {
       <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
     </NavigationThemeProvider>
   );
-}
+});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

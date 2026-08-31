@@ -1,431 +1,401 @@
-import React from "react";
-import { render, cleanup } from "@testing-library/react";
+import React, { memo, useMemo } from "react";
 import { act } from "react";
-import { bench, describe, afterEach } from "vitest";
+import { render } from "@testing-library/react";
+import { StyleSheet } from "react-native";
+import { bench, describe } from "vitest";
+import { createThemedStyles } from "../src/styles/create-themed-styles";
 import {
   ThemeProvider,
   useTheme,
   useThemeSelector,
 } from "../src/styles/theme-provider";
-import { createThemedStyles } from "../src/styles/create-themed-styles";
 
 const sharedSpacing = { sm: 4, md: 8, lg: 16 } as const;
-
 const themes = {
   light: {
-    colors: {
-      text: "#11181C",
-      background: "#fff",
-      tint: "#0a7ea4",
-      icon: "#687076",
-    },
+    colors: { text: "#11181C", background: "#fff", tint: "#0a7ea4" },
     spacing: sharedSpacing,
   },
   dark: {
-    colors: {
-      text: "#ECEDEE",
-      background: "#151718",
-      tint: "#fff",
-      icon: "#9BA1A6",
-    },
+    colors: { text: "#ECEDEE", background: "#151718", tint: "#fff" },
+    spacing: sharedSpacing,
+  },
+} as const;
+const replacementThemes = {
+  light: {
+    colors: { text: "#11181C", background: "ivory", tint: "#0a7ea4" },
+    spacing: sharedSpacing,
+  },
+  dark: {
+    colors: { text: "#ECEDEE", background: "navy", tint: "#fff" },
     spacing: sharedSpacing,
   },
 } as const;
 
 type Themes = typeof themes;
+type ThemeName = keyof Themes;
+type ConsumerComponent = React.ComponentType;
+type RenderedView = ReturnType<typeof render>;
 
-describe("useThemeSelector vs useTheme — single toggle", () => {
-  afterEach(cleanup);
-
-  bench("useThemeSelector (narrow: spacing — stable slice)", () => {
-    let toggle: (() => void) | undefined;
-
-    function Consumer() {
-      useThemeSelector<Themes, typeof themes.light.spacing>(
-        (ctx) => ctx.theme.spacing,
-      );
-      return null;
-    }
-
-    function Toggle() {
-      toggle = useThemeSelector<Themes, () => void>((ctx) => ctx.toggleTheme);
-      return null;
-    }
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          <Consumer />
-          <Toggle />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-
-  bench("useTheme (full context — always re-renders)", () => {
-    let toggle: (() => void) | undefined;
-
-    function Consumer() {
-      const ctx = useTheme<Themes>();
-      toggle = ctx.toggleTheme;
-      return null;
-    }
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          <Consumer />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
+const StableSelectorConsumer = memo(function StableSelectorConsumer() {
+  useThemeSelector<Themes, typeof sharedSpacing>(
+    (context) => context.theme.spacing,
+  );
+  return null;
 });
 
-describe("createThemedStyles — 2-arg (selector) vs 1-arg (full theme)", () => {
-  afterEach(cleanup);
+const ChangingSelectorConsumer = memo(function ChangingSelectorConsumer() {
+  useThemeSelector<Themes, string>(
+    (context) => context.theme.colors.background,
+  );
+  return null;
+});
 
-  bench("2-arg form with stable slice (spacing — no re-render)", () => {
-    const useStyles = createThemedStyles<
-      typeof themes.light.spacing,
-      { box: { padding: number } },
-      Themes
-    >(
-      (theme) => theme.spacing,
-      (spacing) => ({ box: { padding: spacing.md } }),
-    );
+const FullContextConsumer = memo(function FullContextConsumer() {
+  useTheme<Themes>();
+  return null;
+});
 
-    let toggle: (() => void) | undefined;
+const useBenchmarkStyles = createThemedStyles<
+  string,
+  {
+    container: { backgroundColor: string; padding: number };
+    label: { color: string };
+  },
+  Themes
+>(
+  (theme) => theme.colors.background,
+  (backgroundColor) => ({
+    container: { backgroundColor, padding: 8 },
+    label: { color: backgroundColor },
+  }),
+);
 
-    function Consumer() {
-      useStyles();
-      return null;
-    }
+const StyledConsumer = memo(function StyledConsumer() {
+  useBenchmarkStyles();
+  return null;
+});
 
-    function Toggle() {
-      toggle = useThemeSelector<Themes, () => void>((ctx) => ctx.toggleTheme);
-      return null;
-    }
+const PerInstanceStyledConsumer = memo(function PerInstanceStyledConsumer() {
+  const backgroundColor = useThemeSelector<Themes, string>(
+    (context) => context.theme.colors.background,
+  );
 
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          <Consumer />
-          <Toggle />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-
-  bench("1-arg form (full theme — always re-renders)", () => {
-    const useStyles = createThemedStyles<{ box: { padding: number } }, Themes>(
-      (theme) => ({
-        box: { padding: theme.spacing.md },
+  useMemo(
+    () =>
+      StyleSheet.create({
+        container: { backgroundColor, padding: 8 },
+        label: { color: backgroundColor },
       }),
+    [backgroundColor],
+  );
+
+  return null;
+});
+
+function createConsumers(Component: ConsumerComponent, count: number) {
+  return Array.from({ length: count }, (_, index) => <Component key={index} />);
+}
+
+function createUncontrolledFixture(
+  Component: ConsumerComponent,
+  count: number,
+) {
+  let toggleTheme: (() => void) | undefined;
+  let view: RenderedView | undefined;
+
+  function ToggleSource() {
+    toggleTheme = useThemeSelector<Themes, () => void>(
+      (context) => context.toggleTheme,
     );
+    return null;
+  }
 
-    let toggle: (() => void) | undefined;
+  const tree = (
+    <ThemeProvider themes={themes} initialTheme="light">
+      {createConsumers(Component, count)}
+      <ToggleSource />
+    </ThemeProvider>
+  );
 
-    function Consumer() {
-      useStyles();
-      return null;
-    }
+  return {
+    mount() {
+      toggleTheme = undefined;
+      view = render(tree);
+    },
+    mountOnce() {
+      const mountedView = render(tree);
+      mountedView.unmount();
+    },
+    toggle(times = 1) {
+      const toggle = toggleTheme;
 
-    function Toggle() {
-      toggle = useThemeSelector<Themes, () => void>((ctx) => ctx.toggleTheme);
-      return null;
-    }
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          <Consumer />
-          <Toggle />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-});
-
-describe("scaling — 100 consumers, single toggle", () => {
-  afterEach(cleanup);
-
-  bench("100x useThemeSelector (narrow: stable slice)", () => {
-    let toggle: (() => void) | undefined;
-
-    function StableConsumer() {
-      useThemeSelector<Themes, typeof themes.light.spacing>(
-        (ctx) => ctx.theme.spacing,
-      );
-      return null;
-    }
-
-    function Toggle() {
-      toggle = useThemeSelector<Themes, () => void>((ctx) => ctx.toggleTheme);
-      return null;
-    }
-
-    const consumers = Array.from({ length: 100 }, (_, i) => (
-      <StableConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-          <Toggle />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-
-  bench("100x useTheme (full context)", () => {
-    let toggle: (() => void) | undefined;
-
-    function FullConsumer() {
-      const ctx = useTheme<Themes>();
-      toggle = ctx.toggleTheme;
-      return null;
-    }
-
-    const consumers = Array.from({ length: 100 }, (_, i) => (
-      <FullConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-});
-
-describe("scaling — 500 consumers, single toggle", () => {
-  afterEach(cleanup);
-
-  bench("500x useThemeSelector (narrow: stable slice)", () => {
-    let toggle: (() => void) | undefined;
-
-    function StableConsumer() {
-      useThemeSelector<Themes, typeof themes.light.spacing>(
-        (ctx) => ctx.theme.spacing,
-      );
-      return null;
-    }
-
-    function Toggle() {
-      toggle = useThemeSelector<Themes, () => void>((ctx) => ctx.toggleTheme);
-      return null;
-    }
-
-    const consumers = Array.from({ length: 500 }, (_, i) => (
-      <StableConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-          <Toggle />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-
-  bench("500x useTheme (full context)", () => {
-    let toggle: (() => void) | undefined;
-
-    function FullConsumer() {
-      const ctx = useTheme<Themes>();
-      toggle = ctx.toggleTheme;
-      return null;
-    }
-
-    const consumers = Array.from({ length: 500 }, (_, i) => (
-      <FullConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-});
-
-describe("scaling — 1000 consumers, single toggle", () => {
-  afterEach(cleanup);
-
-  bench("1000x useThemeSelector (narrow: stable slice)", () => {
-    let toggle: (() => void) | undefined;
-
-    function StableConsumer() {
-      useThemeSelector<Themes, typeof themes.light.spacing>(
-        (ctx) => ctx.theme.spacing,
-      );
-      return null;
-    }
-
-    function Toggle() {
-      toggle = useThemeSelector<Themes, () => void>((ctx) => ctx.toggleTheme);
-      return null;
-    }
-
-    const consumers = Array.from({ length: 1000 }, (_, i) => (
-      <StableConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-          <Toggle />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-
-  bench("1000x useTheme (full context)", () => {
-    let toggle: (() => void) | undefined;
-
-    function FullConsumer() {
-      const ctx = useTheme<Themes>();
-      toggle = ctx.toggleTheme;
-      return null;
-    }
-
-    const consumers = Array.from({ length: 1000 }, (_, i) => (
-      <FullConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      toggle?.();
-    });
-    cleanup();
-  });
-});
-
-describe("rapid toggles — 100 toggles with 100 consumers", () => {
-  afterEach(cleanup);
-
-  bench("100x useThemeSelector (narrow: stable slice) — 100 toggles", () => {
-    let toggle: (() => void) | undefined;
-
-    function StableConsumer() {
-      useThemeSelector<Themes, typeof themes.light.spacing>(
-        (ctx) => ctx.theme.spacing,
-      );
-      return null;
-    }
-
-    function Toggle() {
-      toggle = useThemeSelector<Themes, () => void>((ctx) => ctx.toggleTheme);
-      return null;
-    }
-
-    const consumers = Array.from({ length: 100 }, (_, i) => (
-      <StableConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-          <Toggle />
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      for (let i = 0; i < 100; i++) {
-        toggle?.();
+      if (!toggle) {
+        throw new Error("Benchmark fixture must be mounted before toggling");
       }
-    });
-    cleanup();
-  });
 
-  bench("100x useTheme (full context) — 100 toggles", () => {
-    let toggle: (() => void) | undefined;
-
-    function FullConsumer() {
-      const ctx = useTheme<Themes>();
-      toggle = ctx.toggleTheme;
-      return null;
-    }
-
-    const consumers = Array.from({ length: 100 }, (_, i) => (
-      <FullConsumer key={i} />
-    ));
-
-    act(() => {
-      render(
-        <ThemeProvider themes={themes} initialTheme="light">
-          {consumers}
-        </ThemeProvider>,
-      );
-    });
-
-    act(() => {
-      for (let i = 0; i < 100; i++) {
-        toggle?.();
+      for (let index = 0; index < times; index += 1) {
+        act(() => {
+          toggle();
+        });
       }
-    });
-    cleanup();
+    },
+    unmount() {
+      view?.unmount();
+      view = undefined;
+    },
+  };
+}
+
+function createControlledFixture(Component: ConsumerComponent, count: number) {
+  let themeName: ThemeName = "light";
+  let view: RenderedView | undefined;
+  const children = <>{createConsumers(Component, count)}</>;
+  const createTree = () => (
+    <ThemeProvider themes={themes} themeName={themeName}>
+      {children}
+    </ThemeProvider>
+  );
+
+  return {
+    mount() {
+      themeName = "light";
+      view = render(createTree());
+    },
+    update() {
+      const mountedView = view;
+
+      if (!mountedView) {
+        throw new Error("Benchmark fixture must be mounted before updating");
+      }
+
+      themeName = themeName === "light" ? "dark" : "light";
+      act(() => {
+        mountedView.rerender(createTree());
+      });
+    },
+    unmount() {
+      view?.unmount();
+      view = undefined;
+    },
+  };
+}
+
+function createThemeMapFixture(count: number) {
+  let useReplacement = false;
+  let view: RenderedView | undefined;
+  const children = <>{createConsumers(StableSelectorConsumer, count)}</>;
+  const createTree = () => (
+    <ThemeProvider
+      themes={useReplacement ? replacementThemes : themes}
+      initialTheme="light"
+    >
+      {children}
+    </ThemeProvider>
+  );
+
+  return {
+    mount() {
+      useReplacement = false;
+      view = render(createTree());
+    },
+    replace() {
+      const mountedView = view;
+
+      if (!mountedView) {
+        throw new Error("Benchmark fixture must be mounted before replacing");
+      }
+
+      useReplacement = !useReplacement;
+      act(() => {
+        mountedView.rerender(createTree());
+      });
+    },
+    unmount() {
+      view?.unmount();
+      view = undefined;
+    },
+  };
+}
+
+describe("mount — 1,000 consumers", () => {
+  const selectorFixture = createUncontrolledFixture(
+    StableSelectorConsumer,
+    1_000,
+  );
+  const fullFixture = createUncontrolledFixture(FullContextConsumer, 1_000);
+  const cachedStylesFixture = createUncontrolledFixture(StyledConsumer, 1_000);
+  const perInstanceStylesFixture = createUncontrolledFixture(
+    PerInstanceStyledConsumer,
+    1_000,
+  );
+
+  bench("useThemeSelector mount", () => {
+    selectorFixture.mountOnce();
   });
+
+  bench("useTheme mount", () => {
+    fullFixture.mountOnce();
+  });
+
+  bench("cached themed styles mount", () => {
+    cachedStylesFixture.mountOnce();
+  });
+
+  bench("per-instance style creation mount", () => {
+    perInstanceStylesFixture.mountOnce();
+  });
+});
+
+describe("update only — 1,000 consumers", () => {
+  const selectorFixture = createUncontrolledFixture(
+    StableSelectorConsumer,
+    1_000,
+  );
+  const fullFixture = createUncontrolledFixture(FullContextConsumer, 1_000);
+
+  bench(
+    "stable selector toggle",
+    () => {
+      selectorFixture.toggle();
+    },
+    {
+      setup: () => selectorFixture.mount(),
+      teardown: () => selectorFixture.unmount(),
+    },
+  );
+
+  bench(
+    "full-context toggle",
+    () => {
+      fullFixture.toggle();
+    },
+    {
+      setup: () => fullFixture.mount(),
+      teardown: () => fullFixture.unmount(),
+    },
+  );
+});
+
+describe("style update only — 1,000 changing consumers", () => {
+  const selectorFixture = createUncontrolledFixture(
+    ChangingSelectorConsumer,
+    1_000,
+  );
+  const stylesFixture = createUncontrolledFixture(StyledConsumer, 1_000);
+  const perInstanceStylesFixture = createUncontrolledFixture(
+    PerInstanceStyledConsumer,
+    1_000,
+  );
+
+  bench(
+    "changing selector toggle",
+    () => {
+      selectorFixture.toggle();
+    },
+    {
+      setup: () => selectorFixture.mount(),
+      teardown: () => selectorFixture.unmount(),
+    },
+  );
+
+  bench(
+    "cached themed styles toggle",
+    () => {
+      stylesFixture.toggle();
+    },
+    {
+      setup: () => stylesFixture.mount(),
+      teardown: () => stylesFixture.unmount(),
+    },
+  );
+
+  bench(
+    "per-instance style creation toggle",
+    () => {
+      perInstanceStylesFixture.toggle();
+    },
+    {
+      setup: () => perInstanceStylesFixture.mount(),
+      teardown: () => perInstanceStylesFixture.unmount(),
+    },
+  );
+});
+
+describe("discrete updates — 100 consumers, 10 toggles", () => {
+  const selectorFixture = createUncontrolledFixture(
+    StableSelectorConsumer,
+    100,
+  );
+  const fullFixture = createUncontrolledFixture(FullContextConsumer, 100);
+
+  bench(
+    "stable selectors",
+    () => {
+      selectorFixture.toggle(10);
+    },
+    {
+      setup: () => selectorFixture.mount(),
+      teardown: () => selectorFixture.unmount(),
+    },
+  );
+
+  bench(
+    "full context",
+    () => {
+      fullFixture.toggle(10);
+    },
+    {
+      setup: () => fullFixture.mount(),
+      teardown: () => fullFixture.unmount(),
+    },
+  );
+});
+
+describe("controlled vs uncontrolled — 1,000 changing consumers", () => {
+  const controlledFixture = createControlledFixture(
+    ChangingSelectorConsumer,
+    1_000,
+  );
+  const uncontrolledFixture = createUncontrolledFixture(
+    ChangingSelectorConsumer,
+    1_000,
+  );
+
+  bench(
+    "controlled themeName update",
+    () => {
+      controlledFixture.update();
+    },
+    {
+      setup: () => controlledFixture.mount(),
+      teardown: () => controlledFixture.unmount(),
+    },
+  );
+
+  bench(
+    "uncontrolled toggle",
+    () => {
+      uncontrolledFixture.toggle();
+    },
+    {
+      setup: () => uncontrolledFixture.mount(),
+      teardown: () => uncontrolledFixture.unmount(),
+    },
+  );
+});
+
+describe("theme-map replacement — 1,000 stable consumers", () => {
+  const fixture = createThemeMapFixture(1_000);
+
+  bench(
+    "replace themes map",
+    () => {
+      fixture.replace();
+    },
+    {
+      setup: () => fixture.mount(),
+      teardown: () => fixture.unmount(),
+    },
+  );
 });
