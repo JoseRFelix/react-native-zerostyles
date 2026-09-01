@@ -1,6 +1,6 @@
 {
   "name": "react-native-zerostyles",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "type": "module",
   "description": "Typed theming for React Native with zero dependencies and selector-based subscriptions.",
   "source": "./src/index.ts",
